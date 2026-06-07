@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sparrechner — Wertpapier-Performance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f0eadd;
+    --paper-2:#f7f3e9;
+    --card:#fbf8ef;
+    --ink:#1a1710;
+    --muted:#736a58;
+    --line:#d9cfba;
+    --line-soft:#e7dfcd;
+    --green:#2f5d4a;
+    --green-soft:#cddbd0;
+    --green-bar:#3f7a62;
+    --gold:#a8772b;
+    --sand:#b9a987;
+    --shadow:0 1px 0 rgba(26,23,16,.04), 0 18px 40px -28px rgba(26,23,16,.45);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    font-family:"Hanken Grotesk",sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+    line-height:1.5;
+    min-height:100vh;
+    background-image:
+      radial-gradient(circle at 12% 8%, rgba(47,93,74,.06), transparent 38%),
+      radial-gradient(circle at 92% 4%, rgba(168,119,43,.06), transparent 32%);
+  }
+  /* subtle paper grain */
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.4;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.045'/%3E%3C/svg%3E");
+  }
+  .wrap{position:relative;z-index:1;max-width:1120px;margin:0 auto;padding:clamp(20px,4vw,56px) clamp(16px,4vw,40px) 72px}
+
+  /* ---- Header ---- */
+  header{border-bottom:1.5px solid var(--ink);padding-bottom:22px;margin-bottom:34px}
+  .eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--green);font-weight:500}
+  h1{font-family:"Fraunces",serif;font-weight:600;font-size:clamp(34px,6vw,60px);line-height:1.02;letter-spacing:-.015em;margin:10px 0 0}
+  h1 em{font-style:italic;color:var(--green)}
+  .sub{margin-top:14px;max-width:56ch;color:var(--muted);font-size:15px}
+
+  /* ---- Layout ---- */
+  .grid{display:grid;grid-template-columns:340px 1fr;gap:34px;align-items:start}
+  @media(max-width:880px){.grid{grid-template-columns:1fr;gap:26px}}
+
+  /* ---- Input panel ---- */
+  .panel{
+    background:var(--card);border:1px solid var(--line);border-radius:4px;
+    padding:26px 24px;box-shadow:var(--shadow);position:sticky;top:24px;
+  }
+  @media(max-width:880px){.panel{position:static}}
+  .panel h2{font-family:"Fraunces",serif;font-size:20px;font-weight:600;margin-bottom:4px}
+  .panel .ph{font-size:12.5px;color:var(--muted);margin-bottom:22px}
+  .field{margin-bottom:20px}
+  .field:last-child{margin-bottom:0}
+  label{display:block;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink);margin-bottom:7px}
+  label .hint{display:block;text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted);font-size:11.5px;margin-top:2px}
+  .inputbox{position:relative;display:flex;align-items:center}
+  .inputbox .cur{position:absolute;left:14px;font-family:"IBM Plex Mono",monospace;color:var(--muted);font-size:15px;pointer-events:none}
+  input[type=number],select{
+    width:100%;font-family:"IBM Plex Mono",monospace;font-size:16px;color:var(--ink);
+    background:var(--paper-2);border:1px solid var(--line);border-radius:3px;
+    padding:12px 14px;transition:border-color .15s, box-shadow .15s;-webkit-appearance:none;appearance:none;
+  }
+  input[type=number]{padding-left:30px;text-align:right}
+  input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  input[type=number]{-moz-appearance:textfield}
+  select{
+    cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23736a58' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 14px center;padding-right:34px;
+  }
+  input:focus,select:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px var(--green-soft)}
+  .seg{display:flex;border:1px solid var(--line);border-radius:3px;overflow:hidden}
+  .seg label{flex:1;margin:0;text-transform:none;letter-spacing:0;font-weight:500;font-size:13px;cursor:pointer}
+  .seg label span{display:block;text-align:center;padding:10px 6px;background:var(--paper-2);transition:.15s;color:var(--muted)}
+  .seg input{position:absolute;opacity:0;pointer-events:none}
+  .seg label:first-child span{border-right:1px solid var(--line)}
+  .seg input:checked + span{background:var(--green);color:#fff}
+
+  /* ---- Results ---- */
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:30px}
+  @media(max-width:560px){.cards{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:4px;padding:18px 18px 16px;box-shadow:var(--shadow)}
+  .card .k{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .card .v{font-family:"IBM Plex Mono",monospace;font-size:clamp(20px,3.4vw,27px);font-weight:600;margin-top:8px;letter-spacing:-.01em}
+  .card.accent{background:var(--green);border-color:var(--green)}
+  .card.accent .k{color:#bcd2c6}
+  .card.accent .v{color:#fff}
+
+  .chart-wrap{background:var(--card);border:1px solid var(--line);border-radius:4px;padding:22px 22px 14px;box-shadow:var(--shadow);margin-bottom:30px}
+  .chart-head{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+  .chart-head h3{font-family:"Fraunces",serif;font-size:18px;font-weight:600}
+  .legend{display:flex;gap:16px;font-size:12px;color:var(--muted)}
+  .legend i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+  .legend .l1 i{background:var(--sand)}
+  .legend .l2 i{background:var(--green-bar)}
+  svg{display:block;width:100%;height:auto;overflow:visible}
+  .bar-c{fill:var(--sand)}
+  .bar-i{fill:var(--green-bar)}
+  .axis-line{stroke:var(--line);stroke-width:1}
+  .axis-txt{font-family:"IBM Plex Mono",monospace;font-size:10px;fill:var(--muted)}
+  .gridline{stroke:var(--line-soft);stroke-width:1;stroke-dasharray:2 4}
+
+  /* ---- Table ---- */
+  .table-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+  .table-head h3{font-family:"Fraunces",serif;font-size:22px;font-weight:600}
+  .tbl-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:4px;box-shadow:var(--shadow)}
+  table{width:100%;border-collapse:collapse;background:var(--card);min-width:560px}
+  th,td{padding:11px 16px;text-align:right;font-family:"IBM Plex Mono",monospace;font-size:13.5px;white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  thead th{
+    background:var(--ink);color:var(--paper);font-family:"Hanken Grotesk",sans-serif;
+    font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;position:sticky;top:0;
+  }
+  tbody tr{border-bottom:1px solid var(--line-soft)}
+  tbody tr:last-child{border-bottom:none}
+  tbody tr:nth-child(even){background:var(--paper-2)}
+  tbody tr:hover{background:var(--green-soft)}
+  td.year{font-weight:600;color:var(--ink)}
+  td.interest{color:var(--green);font-weight:500}
+  td.balance{font-weight:600}
+  tfoot td{background:var(--ink);color:var(--paper);font-weight:600;border:none}
+  tfoot td.interest{color:#9ed3bc}
+
+  .note{margin-top:26px;font-size:12.5px;color:var(--muted);line-height:1.65;max-width:78ch;border-top:1px solid var(--line);padding-top:18px}
+  .note b{color:var(--ink);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Zinseszins · Sparplan-Simulation</div>
+    <h1>Wertpapier-<em>Performance</em></h1>
+    <p class="sub">Berechne, wie sich eine Einmalanlage zusammen mit einer monatlichen Sparrate über die Jahre entwickelt — inklusive jährlicher Zinsen, kumulierter Zinsen und Endkapital.</p>
+  </header>
+
+  <div class="grid">
+    <!-- INPUTS -->
+    <div class="panel">
+      <h2>Eingaben</h2>
+      <p class="ph">Alle Werte aktualisieren die Tabelle sofort.</p>
+
+      <div class="field">
+        <label for="lump">Einmalanlage</label>
+        <div class="inputbox"><span class="cur">€</span><input type="number" id="lump" min="0" step="100" value="10000"></div>
+      </div>
+
+      <div class="field">
+        <label for="monthly">Monatliche Sparrate</label>
+        <div class="inputbox"><span class="cur">€</span><input type="number" id="monthly" min="0" step="10" value="200"></div>
+      </div>
+
+      <div class="field">
+        <label for="rate">Zinssatz p.a.</label>
+        <select id="rate"></select>
+      </div>
+
+      <div class="field">
+        <label for="years">Spardauer</label>
+        <select id="years"></select>
+      </div>
+
+      <div class="field">
+        <label>Zinsgutschrift
+          <span class="hint">Monatlich = unterjährige Verzinsung (genauer). Jährlich = klassische Jahresverzinsung.</span>
+        </label>
+        <div class="seg">
+          <label><input type="radio" name="mode" value="monthly" checked><span>Monatlich</span></label>
+          <label><input type="radio" name="mode" value="yearly"><span>Jährlich</span></label>
+        </div>
+      </div>
+    </div>
+
+    <!-- RESULTS -->
+    <div class="results">
+      <div class="cards">
+        <div class="card"><div class="k">Eingezahlt gesamt</div><div class="v" id="r-contrib">–</div></div>
+        <div class="card"><div class="k">Zinsen gesamt</div><div class="v" id="r-interest">–</div></div>
+        <div class="card accent"><div class="k">Endkapital</div><div class="v" id="r-final">–</div></div>
+      </div>
+
+      <div class="chart-wrap">
+        <div class="chart-head">
+          <h3>Kapitalentwicklung</h3>
+          <div class="legend">
+            <span class="l1"><i></i>Einzahlungen</span>
+            <span class="l2"><i></i>Zinsen (kumuliert)</span>
+          </div>
+        </div>
+        <div id="chart"></div>
+      </div>
+
+      <div class="table-head">
+        <h3>Jahr für Jahr</h3>
+      </div>
+      <div class="tbl-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Jahr</th>
+              <th>Einzahlung</th>
+              <th>Zinsen (Jahr)</th>
+              <th>Zinsen kumuliert</th>
+              <th>Kontostand</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+          <tfoot id="tfoot"></tfoot>
+        </table>
+      </div>
+
+      <p class="note">
+        <b>Methodik:</b> Die Einmalanlage wird zu Beginn angelegt, die Sparrate jeweils zum Monatsanfang eingezahlt (vorschüssig) und mitverzinst. Bei <b>monatlicher</b> Gutschrift wird mit Zinssatz ÷ 12 pro Monat gerechnet (effektiver Jahreszins liegt dadurch minimal höher als der Nominalzins). Bei <b>jährlicher</b> Gutschrift erhalten die unterjährigen Sparraten anteilig Zinsen für ihre Laufzeit im Jahr.
+        <br><br>
+        <b>Hinweis:</b> Reine Modellrechnung mit konstantem Zinssatz. Bei Wertpapieren schwanken Renditen real stark; Steuern (z.&nbsp;B. Abgeltungsteuer), Inflation, Ausgabeaufschläge und Depotkosten sind nicht berücksichtigt. Keine Anlageberatung.
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---- populate dropdowns ----
+  var rateSel = document.getElementById('rate');
+  for (var r = 5.0; r <= 7.001; r += 0.25){
+    var v = Math.round(r*100)/100;
+    var o = document.createElement('option');
+    o.value = v;
+    o.textContent = v.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' %';
+    if (v === 6) o.selected = true;
+    rateSel.appendChild(o);
+  }
+  var yearsSel = document.getElementById('years');
+  for (var y = 1; y <= 40; y++){
+    var oy = document.createElement('option');
+    oy.value = y;
+    oy.textContent = y + (y === 1 ? ' Jahr' : ' Jahre');
+    if (y === 15) oy.selected = true;
+    yearsSel.appendChild(oy);
+  }
+
+  // ---- formatters ----
+  function eur(v){
+    return v.toLocaleString('de-DE',{style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:2});
+  }
+  function eurShort(v){
+    if (Math.abs(v) >= 1000)
+      return Math.round(v/1000).toLocaleString('de-DE') + 'k';
+    return Math.round(v).toLocaleString('de-DE');
+  }
+
+  // ---- core simulation ----
+  function simulate(lump, monthly, ratePct, years, mode){
+    var p = ratePct/100;
+    var balance = lump;
+    var cumInterest = 0;
+    var totalContrib = lump;
+    var rows = [];
+
+    for (var yr = 1; yr <= years; yr++){
+      var yearInterest = 0;
+      var yearContrib = 0;
+
+      if (mode === 'monthly'){
+        var i = p/12;
+        for (var m = 0; m < 12; m++){
+          balance += monthly;          // Einzahlung zum Monatsanfang
+          yearContrib += monthly;
+          var ip = balance * i;        // Zinsen auf den Monatsbestand
+          balance += ip;
+          yearInterest += ip;
+        }
+      } else { // yearly
+        yearContrib = monthly * 12;
+        var onBalance = balance * p;
+        // vorschüssige Monatsraten -> im Schnitt 6,5/12 Jahresverzinsung
+        var onDeposits = monthly * p * 6.5;
+        yearInterest = onBalance + onDeposits;
+        balance += yearContrib + yearInterest;
+      }
+
+      totalContrib += yearContrib;
+      cumInterest += yearInterest;
+      rows.push({
+        year: yr,
+        contrib: yearContrib,
+        interest: yearInterest,
+        cumInterest: cumInterest,
+        cumContrib: totalContrib,
+        balance: balance
+      });
+    }
+    return {rows: rows, totalContrib: totalContrib, cumInterest: cumInterest, finalBalance: balance};
+  }
+
+  // ---- chart (stacked bars: contributions + cumulative interest) ----
+  function renderChart(rows){
+    var W = 760, H = 300, padL = 8, padR = 8, padT = 12, padB = 26;
+    var n = rows.length;
+    var innerW = W - padL - padR;
+    var innerH = H - padT - padB;
+    var maxVal = Math.max.apply(null, rows.map(function(r){return r.balance;}));
+    if (maxVal <= 0) maxVal = 1;
+
+    var gap = n > 24 ? 1.5 : (n > 12 ? 3 : 6);
+    var bw = (innerW - gap*(n-1)) / n;
+    var svg = '<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" role="img" aria-label="Balkendiagramm der Kapitalentwicklung">';
+
+    // gridlines + y labels (4 steps)
+    for (var g = 0; g <= 4; g++){
+      var gy = padT + innerH - (innerH * g/4);
+      svg += '<line class="gridline" x1="'+padL+'" y1="'+gy.toFixed(1)+'" x2="'+(W-padR)+'" y2="'+gy.toFixed(1)+'"/>';
+      svg += '<text class="axis-txt" x="'+(padL+2)+'" y="'+(gy-3).toFixed(1)+'">'+eurShort(maxVal*g/4)+' €</text>';
+    }
+
+    // bars
+    rows.forEach(function(r, idx){
+      var x = padL + idx*(bw+gap);
+      var cH = (r.cumContrib / maxVal) * innerH;
+      var iH = (r.cumInterest / maxVal) * innerH;
+      var yC = padT + innerH - cH;
+      var yI = yC - iH;
+      svg += '<rect class="bar-c" x="'+x.toFixed(1)+'" y="'+yC.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+Math.max(0,cH).toFixed(1)+'"><title>Jahr '+r.year+' · Einzahlungen '+eur(r.cumContrib)+'</title></rect>';
+      svg += '<rect class="bar-i" x="'+x.toFixed(1)+'" y="'+yI.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+Math.max(0,iH).toFixed(1)+'"><title>Jahr '+r.year+' · Zinsen '+eur(r.cumInterest)+' · Stand '+eur(r.balance)+'</title></rect>';
+    });
+
+    // x axis labels (sparse)
+    var step = n <= 12 ? 1 : (n <= 25 ? 5 : 10);
+    svg += '<line class="axis-line" x1="'+padL+'" y1="'+(padT+innerH)+'" x2="'+(W-padR)+'" y2="'+(padT+innerH)+'"/>';
+    rows.forEach(function(r, idx){
+      var showFirst = (idx === 0);
+      var showLast = (idx === n-1);
+      if (r.year % step === 0 || showFirst || showLast){
+        var x = padL + idx*(bw+gap) + bw/2;
+        svg += '<text class="axis-txt" text-anchor="middle" x="'+x.toFixed(1)+'" y="'+(H-8)+'">'+r.year+'</text>';
+      }
+    });
+
+    svg += '</svg>';
+    document.getElementById('chart').innerHTML = svg;
+  }
+
+  // ---- render table ----
+  function renderTable(res){
+    var tb = document.getElementById('tbody');
+    var tf = document.getElementById('tfoot');
+    var html = '';
+    res.rows.forEach(function(r){
+      html += '<tr>'
+        + '<td class="year">'+r.year+'</td>'
+        + '<td>'+eur(r.contrib)+'</td>'
+        + '<td class="interest">'+eur(r.interest)+'</td>'
+        + '<td class="interest">'+eur(r.cumInterest)+'</td>'
+        + '<td class="balance">'+eur(r.balance)+'</td>'
+        + '</tr>';
+    });
+    tb.innerHTML = html;
+    tf.innerHTML = '<tr>'
+      + '<td>Summe</td>'
+      + '<td>'+eur(res.totalContrib)+'</td>'
+      + '<td class="interest">—</td>'
+      + '<td class="interest">'+eur(res.cumInterest)+'</td>'
+      + '<td>'+eur(res.finalBalance)+'</td>'
+      + '</tr>';
+  }
+
+  // ---- read inputs + recompute ----
+  function num(id){ var v = parseFloat(document.getElementById(id).value); return isNaN(v) || v < 0 ? 0 : v; }
+  function getMode(){ return document.querySelector('input[name="mode"]:checked').value; }
+
+  function update(){
+    var lump = num('lump');
+    var monthly = num('monthly');
+    var rate = parseFloat(rateSel.value);
+    var years = parseInt(yearsSel.value, 10);
+    var mode = getMode();
+
+    var res = simulate(lump, monthly, rate, years, mode);
+
+    document.getElementById('r-contrib').textContent  = eur(res.totalContrib);
+    document.getElementById('r-interest').textContent = eur(res.cumInterest);
+    document.getElementById('r-final').textContent    = eur(res.finalBalance);
+
+    renderChart(res.rows);
+    renderTable(res);
+  }
+
+  // ---- listeners ----
+  ['lump','monthly','rate','years'].forEach(function(id){
+    document.getElementById(id).addEventListener('input', update);
+  });
+  document.querySelectorAll('input[name="mode"]').forEach(function(el){
+    el.addEventListener('change', update);
+  });
+
+  update();
+})();
+</script>
+</body>
+</html>
